@@ -68,33 +68,36 @@ def create_final_html(input_file, output_file, revista):
     in_references_section = False
     
     for para in doc.paragraphs:
-        para_text = para.text.strip()
+        # Normalizar espacios no separables (\xa0) que Word usa frecuentemente
+        para_text = para.text.replace('\xa0', ' ').strip()
         if not para_text:
             continue
-        
+
         paragraph_counter += 1
         para_id = f"para-{paragraph_counter}"
-        
-        # Detectar inicio de sección de referencias
-        if re.match(r'^\s*REFERENCIAS\s*$', para_text, re.IGNORECASE):
+
+        # Detectar inicio de sección de referencias (acepta variantes comunes)
+        if re.match(r'^\s*REFERENCIAS(\s+BIBLIOGR[ÁA]FICAS?)?\s*$', para_text, re.IGNORECASE) or \
+           re.match(r'^\s*BIBLIOGRAF[ÍI]A\s*$', para_text, re.IGNORECASE):
             in_references_section = True
-        
+
         p = determine_paragraph_style(para_text, soup, in_references_section)
         if p:
             p['id'] = para_id
-            
+
             # Procesar referencias en el texto [1], [2], etc.
             if not in_references_section:
                 process_inline_references(p, para_text, para_id, soup)
             else:
-                # Si es una referencia, agregar ID único y botón de volver
-                ref_match = re.match(r'^\[(\d+)\]', para_text)
+                # Detectar formato de referencia: [1], (1) o 1.
+                ref_match = re.match(r'^[\[\(]?(\d+)[\]\)\.]', para_text)
                 if ref_match:
                     ref_num = ref_match.group(1)
                     p['id'] = f"ref-{ref_num}"
                     p['class'].append('reference-item')
-                    p.string = para_text
-            
+                # Siempre establecer el texto (incluyendo el encabezado "REFERENCIAS")
+                p.string = para_text
+
             body.append(p)
         
         # Insertar placeholder para imágenes
@@ -158,8 +161,8 @@ def process_inline_references(p_tag, text, para_id, soup):
 def determine_paragraph_style(para_text, soup, in_references=False):
     """Determina el estilo del párrafo según su contenido"""
     
-    # Referencias
-    if in_references and re.match(r'^\[\d+\]', para_text):
+    # Referencias — soporta formatos [1], (1) y 1.
+    if in_references and re.match(r'^[\[\(]?\d+[\]\)\.]', para_text):
         return soup.new_tag('p', **{'class': 'revista_referencias'})
     
     # Títulos numerados
@@ -256,18 +259,6 @@ def copy_media_files(source_folder, dest_folder):
             shutil.copy2(source_file, dest_file)
 
 
-def insert_equations(temp_html_path, final_html_path):
-    """Inserta ecuaciones del HTML de Pandoc"""
-    with open(temp_html_path, 'r', encoding='utf-8') as f:
-        temp_soup = BeautifulSoup(f.read(), 'html.parser')
-    
-    equations = temp_soup.find_all('math')
-    if not equations:
-        return
-    
-    with open(final_html_path, 'r', encoding='utf-8') as f:
-        final_soup = BeautifulSoup(f.read(), 'html.parser')
-    
 def insert_equations(temp_html_path, final_html_path):
     """Inserta ecuaciones del HTML de Pandoc"""
     with open(temp_html_path, 'r', encoding='utf-8') as f:

@@ -30,19 +30,24 @@ const ConversorRevistasApp = () => {
   }, []);
 
   const handleFileSelect = (e) => {
-    const selectedFiles = Array.from(e.target.files);
-    setFiles(selectedFiles);
+    const selected = Array.from(e.target.files);
+    setFiles(prev => {
+      const existing = new Set(prev.map(f => f.name));
+      return [...prev, ...selected.filter(f => !existing.has(f.name))];
+    });
     setCompleted(false);
     setError(null);
     setDownloadUrl(null);
+    e.target.value = '';
   };
 
   const handleDrop = (e) => {
     e.preventDefault();
-    const droppedFiles = Array.from(e.dataTransfer.files).filter(f => 
-      f.name.endsWith('.docx')
-    );
-    setFiles(droppedFiles);
+    const dropped = Array.from(e.dataTransfer.files).filter(f => f.name.endsWith('.docx'));
+    setFiles(prev => {
+      const existing = new Set(prev.map(f => f.name));
+      return [...prev, ...dropped.filter(f => !existing.has(f.name))];
+    });
     setCompleted(false);
     setError(null);
   };
