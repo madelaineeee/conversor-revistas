@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { Upload, FileText, CheckCircle, AlertCircle, Loader, Download, ExternalLink } from 'lucide-react';
+import { Upload, FileText, CheckCircle, AlertCircle, Loader, Download, ExternalLink, X, Pencil, Check } from 'lucide-react';
 
 const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:8000';
 
@@ -7,6 +7,8 @@ const ConversorRevistasApp = () => {
   const [revistas, setRevistas] = useState([]);
   const [selectedRevista, setSelectedRevista] = useState('');
   const [files, setFiles] = useState([]);
+  const [editingIndex, setEditingIndex] = useState(null);
+  const [editingName, setEditingName] = useState('');
   const [processing, setProcessing] = useState(false);
   const [completed, setCompleted] = useState(false);
   const [error, setError] = useState(null);
@@ -43,6 +45,24 @@ const ConversorRevistasApp = () => {
     setFiles(droppedFiles);
     setCompleted(false);
     setError(null);
+  };
+
+  const removeFile = (index) => {
+    setFiles(prev => prev.filter((_, i) => i !== index));
+    if (editingIndex === index) setEditingIndex(null);
+  };
+
+  const startEdit = (index) => {
+    setEditingIndex(index);
+    setEditingName(files[index].name.replace(/\.docx$/i, ''));
+  };
+
+  const saveEdit = (index) => {
+    const newName = editingName.trim() || files[index].name;
+    const finalName = newName.endsWith('.docx') ? newName : `${newName}.docx`;
+    const newFile = new File([files[index]], finalName, { type: files[index].type });
+    setFiles(prev => prev.map((f, i) => (i === index ? newFile : f)));
+    setEditingIndex(null);
   };
 
   const handleConvert = async () => {
@@ -196,15 +216,52 @@ const ConversorRevistasApp = () => {
                   <p className="font-semibold text-gray-700 mb-2">
                     {files.length} archivo(s) seleccionado(s):
                   </p>
-                  <div className="max-h-40 overflow-y-auto">
-                    <ul className="space-y-1">
+                  <div className="max-h-52 overflow-y-auto">
+                    <ul className="space-y-2">
                       {files.map((file, index) => (
-                        <li key={index} className="text-sm text-gray-600 flex items-center gap-2">
+                        <li key={index} className="flex items-center gap-2 bg-white rounded-lg px-3 py-2 shadow-sm border border-blue-100">
                           <FileText className="w-4 h-4 text-blue-600 flex-shrink-0" />
-                          <span className="truncate">{file.name}</span>
-                          <span className="text-gray-400 text-xs">
-                            ({(file.size / 1024).toFixed(1)} KB)
+                          {editingIndex === index ? (
+                            <input
+                              autoFocus
+                              className="flex-1 text-sm border border-blue-300 rounded px-2 py-0.5 outline-none focus:ring-2 focus:ring-blue-400"
+                              value={editingName}
+                              onChange={e => setEditingName(e.target.value)}
+                              onKeyDown={e => {
+                                if (e.key === 'Enter') saveEdit(index);
+                                if (e.key === 'Escape') setEditingIndex(null);
+                              }}
+                            />
+                          ) : (
+                            <span className="flex-1 text-sm text-gray-700 truncate">{file.name}</span>
+                          )}
+                          <span className="text-gray-400 text-xs whitespace-nowrap">
+                            {(file.size / 1024).toFixed(1)} KB
                           </span>
+                          {editingIndex === index ? (
+                            <button
+                              onClick={() => saveEdit(index)}
+                              title="Guardar nombre"
+                              className="flex-shrink-0 p-1 rounded hover:bg-green-100 text-green-600 transition-colors"
+                            >
+                              <Check className="w-4 h-4" />
+                            </button>
+                          ) : (
+                            <button
+                              onClick={() => startEdit(index)}
+                              title="Renombrar archivo"
+                              className="flex-shrink-0 p-1 rounded hover:bg-blue-100 text-blue-400 hover:text-blue-600 transition-colors"
+                            >
+                              <Pencil className="w-4 h-4" />
+                            </button>
+                          )}
+                          <button
+                            onClick={() => removeFile(index)}
+                            title="Eliminar archivo"
+                            className="flex-shrink-0 p-1 rounded hover:bg-red-100 text-gray-400 hover:text-red-500 transition-colors"
+                          >
+                            <X className="w-4 h-4" />
+                          </button>
                         </li>
                       ))}
                     </ul>
