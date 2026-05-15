@@ -66,7 +66,11 @@ def create_final_html(input_file, output_file, revista):
     
     paragraph_counter = 0
     in_references_section = False
-    
+    references_heading_added = False
+
+    def is_reference_item(text):
+        return bool(re.match(r'^[\[\(]?\d+[\]\)\.]', text))
+
     for para in doc.paragraphs:
         # Normalizar espacios no separables (\xa0) que Word usa frecuentemente
         para_text = para.text.replace('\xa0', ' ').strip()
@@ -80,6 +84,22 @@ def create_final_html(input_file, output_file, revista):
         if re.match(r'^\s*REFERENCIAS(\s+BIBLIOGR[ÁA]FICAS?)?\s*$', para_text, re.IGNORECASE) or \
            re.match(r'^\s*BIBLIOGRAF[ÍI]A\s*$', para_text, re.IGNORECASE):
             in_references_section = True
+
+        # Si el doc no tiene encabezado explícito pero arranca con un ítem de referencia
+        # luego de al menos 10 párrafos procesados, insertar el título automáticamente
+        if not in_references_section and not references_heading_added \
+                and paragraph_counter > 10 and is_reference_item(para_text):
+            in_references_section = True
+
+        # Insertar encabezado "REFERENCIAS" si aún no se hizo
+        if in_references_section and not references_heading_added:
+            references_heading_added = True
+            if not re.match(r'^\s*REFERENCIAS', para_text, re.IGNORECASE) and \
+               not re.match(r'^\s*BIBLIOGRAF', para_text, re.IGNORECASE):
+                # El encabezado no viene del doc — lo generamos nosotros
+                heading = soup.new_tag('p', **{'class': 'revista_titulo1'})
+                heading.string = 'REFERENCIAS'
+                body.append(heading)
 
         p = determine_paragraph_style(para_text, soup, in_references_section)
         if p:
